@@ -73,7 +73,7 @@ abstract class Driver
 
         $config = array_intersect_key($this->config, array_flip(['visibility', 'disable_asserts', 'url']));
 
-        return new Filesystem($adapter, count($config) > 0 ? $config : null);
+        return new Filesystem($adapter, count($config) > 0 ? $config : []);
     }
 
     /**
