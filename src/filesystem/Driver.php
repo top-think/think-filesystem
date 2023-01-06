@@ -73,7 +73,7 @@ abstract class Driver
 
         $config = array_intersect_key($this->config, array_flip(['visibility', 'disable_asserts', 'url']));
 
-        return new Filesystem($adapter, count($config) > 0 ? $config : []);
+        return new Filesystem($adapter, $config);
     }
 
     /**
@@ -104,10 +104,10 @@ abstract class Driver
 
     /**
      * 保存文件
-     * @param string               $path    路径
-     * @param File                 $file    文件
-     * @param null|string|\Closure $rule    文件名规则
-     * @param array                $options 参数
+     * @param string $path 路径
+     * @param File $file 文件
+     * @param null|string|\Closure $rule 文件名规则
+     * @param array $options 参数
      * @return bool|string
      */
     public function putFile(string $path, File $file, $rule = null, array $options = [])
@@ -117,10 +117,10 @@ abstract class Driver
 
     /**
      * 指定文件名保存文件
-     * @param string $path    路径
-     * @param File   $file    文件
-     * @param string $name    文件名
-     * @param array  $options 参数
+     * @param string $path 路径
+     * @param File $file 文件
+     * @param string $name 文件名
+     * @param array $options 参数
      * @return bool|string
      */
     public function putFileAs(string $path, File $file, string $name, array $options = [])
