@@ -2,7 +2,7 @@
 // +----------------------------------------------------------------------
 // | ThinkPHP [ WE CAN DO IT JUST THINK ]
 // +----------------------------------------------------------------------
-// | Copyright (c) 2006~2021 http://thinkphp.cn All rights reserved.
+// | Copyright (c) 2006~2024 http://thinkphp.cn All rights reserved.
 // +----------------------------------------------------------------------
 // | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
 // +----------------------------------------------------------------------
@@ -12,13 +12,12 @@ declare (strict_types = 1);
 
 namespace think\filesystem;
 
-use League\Flysystem\AdapterInterface;
-use League\Flysystem\Adapter\AbstractAdapter;
-use League\Flysystem\Cached\CachedAdapter;
-use League\Flysystem\Cached\Storage\Memory as MemoryStore;
+use Closure;
 use League\Flysystem\Filesystem;
-use RuntimeException;
-use think\Cache;
+use League\Flysystem\FilesystemAdapter;
+use League\Flysystem\FilesystemException;
+use League\Flysystem\PathNormalizer;
+use League\Flysystem\WhitespacePathNormalizer;
 use think\File;
 
 /**
@@ -29,49 +28,47 @@ use think\File;
 abstract class Driver
 {
 
-    /** @var Cache */
-    protected $cache;
-
     /** @var Filesystem */
-    protected $filesystem;
+    protected Filesystem $filesystem;
+
+    /** @var PathNormalizer */
+    protected PathNormalizer $pathNormalizer;
 
     /**
      * 配置参数
      * @var array
      */
-    protected $config = [];
+    protected array $config = [];
 
-    public function __construct(Cache $cache, array $config)
+    public function __construct(array $config)
     {
-        $this->cache  = $cache;
         $this->config = array_merge($this->config, $config);
 
-        $adapter          = $this->createAdapter();
+        $adapter = $this->createAdapter();
         $this->filesystem = $this->createFilesystem($adapter);
     }
 
-    protected function createCacheStore($config)
+    /**
+     * 创建适配器
+     * @return FilesystemAdapter
+     */
+    abstract protected function createAdapter(): FilesystemAdapter;
+
+    /**
+     * 创建文件系统
+     * @param FilesystemAdapter $adapter 适配器
+     * @return Filesystem
+     */
+    protected function createFilesystem(FilesystemAdapter $adapter): Filesystem
     {
-        if (true === $config) {
-            return new MemoryStore;
+        $config = array_intersect_key($this->config, array_flip(['public_url', 'visibility', 'directory_visibility', 'checksum_algo']));
+
+        // 路径标准化
+        if (!empty($this->config['path_normalizer'])) {
+            $this->pathNormalizer = new $this->config['path_normalizer'];
+        } else {
+            $this->pathNormalizer = new WhitespacePathNormalizer();
         }
-
-        return new CacheStore(
-            $this->cache->store($config['store']),
-            $config['prefix'] ?? 'flysystem',
-            $config['expire'] ?? null
-        );
-    }
-
-    abstract protected function createAdapter(): AdapterInterface;
-
-    protected function createFilesystem(AdapterInterface $adapter): Filesystem
-    {
-        if (!empty($this->config['cache'])) {
-            $adapter = new CachedAdapter($adapter, $this->createCacheStore($this->config['cache']));
-        }
-
-        $config = array_intersect_key($this->config, array_flip(['visibility', 'disable_asserts', 'url']));
 
         return new Filesystem($adapter, $config);
     }
@@ -83,60 +80,58 @@ abstract class Driver
      */
     public function path(string $path): string
     {
-        $adapter = $this->filesystem->getAdapter();
-
-        if ($adapter instanceof AbstractAdapter) {
-            return $adapter->applyPathPrefix($path);
-        }
-
-        return $path;
+        return $this->pathNormalizer->normalizePath($path);
     }
 
-    protected function concatPathToUrl($url, $path)
-    {
-        return rtrim($url, '/') . '/' . ltrim($path, '/');
-    }
-
+    /**
+     * 获取文件 URL
+     * @param string $path 文件路径
+     * @return string
+     */
     public function url(string $path): string
     {
-        throw new RuntimeException('This driver does not support retrieving URLs.');
+        return $this->filesystem->publicUrl($path);
     }
 
     /**
      * 保存文件
-     * @param string $path 路径
-     * @param File $file 文件
-     * @param null|string|\Closure $rule 文件名规则
-     * @param array $options 参数
-     * @return bool|string
+     * @param string              $path    路径
+     * @param File                $file    文件
+     * @param string|Closure|null $rule    文件名规则
+     * @param array               $options 参数
+     * @return string
+     * @throws FilesystemException
      */
-    public function putFile(string $path, File $file, $rule = null, array $options = [])
+    public function putFile(string $path, File $file, string|Closure|null $rule = null, array $options = []): string
     {
         return $this->putFileAs($path, $file, $file->hashName($rule), $options);
     }
 
     /**
      * 指定文件名保存文件
-     * @param string $path 路径
-     * @param File $file 文件
-     * @param string $name 文件名
-     * @param array $options 参数
-     * @return bool|string
+     * @param string $path    路径
+     * @param File   $file    文件
+     * @param string $name    文件名
+     * @param array  $options 参数
+     * @return string
+     * @throws FilesystemException
      */
-    public function putFileAs(string $path, File $file, string $name, array $options = [])
+    public function putFileAs(string $path, File $file, string $name, array $options = []): string
     {
         $stream = fopen($file->getRealPath(), 'r');
         $path   = trim($path . '/' . $name, '/');
 
-        $result = $this->putStream($path, $stream, $options);
+        $this->writeStream($path, $stream, $options);
 
-        if (is_resource($stream)) {
-            fclose($stream);
-        }
-
-        return $result ? $path : false;
+        return $path;
     }
 
+    /**
+     * 直接调用 flysystem 方法
+     * @param string $method     方法名
+     * @param array  $parameters 参数
+     * @return mixed
+     */
     public function __call($method, $parameters)
     {
         return $this->filesystem->$method(...$parameters);

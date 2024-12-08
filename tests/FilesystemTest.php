@@ -2,8 +2,7 @@
 
 namespace think\tests;
 
-use League\Flysystem\Adapter\NullAdapter;
-use League\Flysystem\AdapterInterface;
+use League\Flysystem\FilesystemAdapter;
 use Mockery as m;
 use Mockery\MockInterface;
 use org\bovigo\vfs\vfsStream;
@@ -50,67 +49,48 @@ class FilesystemTest extends TestCase
         m::close();
     }
 
+    /**
+     * 测试切换磁盘
+     * @return void
+     */
     public function testDisk()
     {
-        $this->config->shouldReceive('get')->with('filesystem.disks.local', null)->andReturn([
-            'type' => 'local',
-            'root' => $this->root->url(),
-        ]);
+        $this->config->shouldReceive('get')
+            ->with('filesystem.disks.local', null)
+            ->andReturn([
+                'type' => 'local',
+                'root' => $this->root->url(),
+            ]);
 
-        $this->config->shouldReceive('get')->with('filesystem.disks.foo', null)->andReturn([
-            'type' => 'local',
-            'root' => $this->root->url(),
-        ]);
+        $this->config->shouldReceive('get')
+            ->with('filesystem.disks.foo', null)
+            ->andReturn([
+                'type' => 'local',
+                'root' => $this->root->url(),
+            ]);
 
         $this->assertInstanceOf(Local::class, $this->filesystem->disk());
 
         $this->assertInstanceOf(Local::class, $this->filesystem->disk('foo'));
     }
 
-    public function testCache()
-    {
-        $this->config->shouldReceive('get')->with('filesystem.disks.local', null)->andReturn([
-            'type'  => 'local',
-            'root'  => $this->root->url(),
-            'cache' => true,
-        ]);
-
-        $this->assertInstanceOf(Local::class, $this->filesystem->disk());
-
-        $this->config->shouldReceive('get')->with('filesystem.disks.cache', null)->andReturn([
-            'type'  => NullDriver::class,
-            'root'  => $this->root->url(),
-            'cache' => [
-                'store' => 'flysystem',
-            ],
-        ]);
-
-        $cache = m::mock(Cache::class);
-
-        $cacheDriver = m::mock(File::class);
-
-        $cache->shouldReceive('store')->once()->with('flysystem')->andReturn($cacheDriver);
-
-        $this->app->shouldReceive('make')->with(Cache::class)->andReturn($cache);
-
-        $cacheDriver->shouldReceive('get')->with('flysystem')->once()->andReturn(null);
-
-        $cacheDriver->shouldReceive('set')->withAnyArgs();
-
-        $this->filesystem->disk('cache')->put('test.txt', 'aa');
-    }
-
+    /**
+     * 测试写入文件
+     * @return void
+     */
     public function testPutFile()
     {
         $root = vfsStream::setup('rootDir', null, [
             'foo.jpg' => 'hello',
         ]);
 
-        $this->config->shouldReceive('get')->with('filesystem.disks.local', null)->andReturn([
-            'type'  => NullDriver::class,
-            'root'  => $root->url(),
-            'cache' => true,
-        ]);
+        $this->config->shouldReceive('get')
+            ->with('filesystem.disks.local', null)
+            ->andReturn([
+                'type'       => 'local',
+                'root'       => $root->url(),
+                'write_flag' => 0,
+            ]);
 
         $file = m::mock(\think\File::class);
 
@@ -119,13 +99,5 @@ class FilesystemTest extends TestCase
         $file->shouldReceive('getRealPath')->once()->andReturn($root->getChild('foo.jpg')->url());
 
         $this->filesystem->putFile('test', $file);
-    }
-}
-
-class NullDriver extends Driver
-{
-    protected function createAdapter(): AdapterInterface
-    {
-        return new NullAdapter();
     }
 }

@@ -12,8 +12,8 @@ declare (strict_types = 1);
 
 namespace think\filesystem\driver;
 
-use League\Flysystem\AdapterInterface;
-use League\Flysystem\Adapter\Local as LocalAdapter;
+use League\Flysystem\Local\LocalFilesystemAdapter;
+use League\Flysystem\UnixVisibility\PortableVisibilityConverter;
 use think\filesystem\Driver;
 
 class Local extends Driver
@@ -22,38 +22,31 @@ class Local extends Driver
      * 配置参数
      * @var array
      */
-    protected $config = [
-        'root' => '',
+    protected array $config = [
+        // 根目录
+        'root'                 => '',
+        // 可见性转换
+        'visibility_converter' => null,
+        // 链接处理方式：skip、disallow
+        'links'                => 'skip',
     ];
 
-    protected function createAdapter(): AdapterInterface
-    {
-        $permissions = $this->config['permissions'] ?? [];
-
-        $links = ($this->config['links'] ?? null) === 'skip'
-        ? LocalAdapter::SKIP_LINKS
-        : LocalAdapter::DISALLOW_LINKS;
-
-        return new LocalAdapter(
-            $this->config['root'],
-            LOCK_EX,
-            $links,
-            $permissions
-        );
-    }
-
     /**
-     * 获取文件访问地址
-     * @param string $path 文件路径
-     * @return string
+     * 创建适配器
+     * @return LocalFilesystemAdapter
      */
-    public function url(string $path): string
+    protected function createAdapter(): LocalFilesystemAdapter
     {
-        $path = str_replace('\\', '/', $path);
+        // 访问可见性处理
+        $visibility = is_array($this->config['visibility_converter'])
+            ? PortableVisibilityConverter::fromArray($this->config['visibility_converter'])
+            : $this->config['visibility_converter'];
 
-        if (isset($this->config['url'])) {
-            return $this->concatPathToUrl($this->config['url'], $path);
-        }
-        return parent::url($path);
+        // 链接处理方式
+        $linkHandling = 'skip' === $this->config['links']
+            ? LocalFilesystemAdapter::SKIP_LINKS
+            : LocalFilesystemAdapter::DISALLOW_LINKS;
+
+        return new LocalFilesystemAdapter($this->config['root'], $visibility, $this->config['write_flag'], $linkHandling);
     }
 }
