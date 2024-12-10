@@ -10,6 +10,7 @@ use PHPUnit\Framework\TestCase;
 use think\App;
 use think\Config;
 use think\Container;
+use think\File;
 use think\Filesystem;
 use think\filesystem\driver\Local;
 
@@ -62,5 +63,18 @@ class FilesystemTest extends TestCase
         $this->assertInstanceOf(Local::class, $this->filesystem->disk('foo'));
     }
 
-}
+    public function testPutFile()
+    {
+        $this->config->shouldReceive('get')->with('filesystem.disks.local', null)->andReturn([
+            'type' => 'local',
+            'root' => $this->root->url(),
+            'lock' => 0,
+        ]);
+        $disk = $this->filesystem->disk();
 
+        $path = $disk->putFile('somepath', new File(__DIR__ . '/test.txt'), 'md5');
+
+        $this->assertTrue($this->root->hasChild(str_replace(DIRECTORY_SEPARATOR, '/', $path)));
+    }
+
+}
