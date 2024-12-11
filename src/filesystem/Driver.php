@@ -2,7 +2,7 @@
 // +----------------------------------------------------------------------
 // | ThinkPHP [ WE CAN DO IT JUST THINK ]
 // +----------------------------------------------------------------------
-// | Copyright (c) 2006~2021 http://thinkphp.cn All rights reserved.
+// | Copyright (c) 2006~2024 http://thinkphp.cn All rights reserved.
 // +----------------------------------------------------------------------
 // | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
 // +----------------------------------------------------------------------
@@ -17,7 +17,6 @@ use League\Flysystem\FilesystemAdapter;
 use League\Flysystem\UnableToSetVisibility;
 use League\Flysystem\UnableToWriteFile;
 use RuntimeException;
-use think\Cache;
 use think\File;
 
 /**
@@ -28,9 +27,6 @@ use think\File;
 abstract class Driver
 {
 
-    /** @var Cache */
-    protected $cache;
-
     /** @var Filesystem */
     protected $filesystem;
 
@@ -40,9 +36,8 @@ abstract class Driver
      */
     protected $config = [];
 
-    public function __construct(Cache $cache, array $config)
+    public function __construct(array $config)
     {
-        $this->cache  = $cache;
         $this->config = array_merge($this->config, $config);
 
         $adapter          = $this->createAdapter();
