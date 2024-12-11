@@ -2,7 +2,7 @@
 // +----------------------------------------------------------------------
 // | ThinkPHP [ WE CAN DO IT JUST THINK ]
 // +----------------------------------------------------------------------
-// | Copyright (c) 2006~2021 http://thinkphp.cn All rights reserved.
+// | Copyright (c) 2006~2024 http://thinkphp.cn All rights reserved.
 // +----------------------------------------------------------------------
 // | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
 // +----------------------------------------------------------------------
@@ -28,7 +28,8 @@ class Filesystem extends Manager
     protected $namespace = '\\think\\filesystem\\driver\\';
 
     /**
-     * @param null|string $name
+     * 获取磁盘驱动实例
+     * @param null|string $name 磁盘名称
      * @return Driver
      */
     public function disk(?string $name = null): Driver
@@ -36,18 +37,28 @@ class Filesystem extends Manager
         return $this->driver($name);
     }
 
-    protected function resolveType(string $name)
+    /**
+     * 获取磁盘类型
+     * @param string $name 磁盘名称
+     * @return string
+     */
+    protected function resolveType(string $name): string
     {
         return $this->getDiskConfig($name, 'type', 'local');
     }
 
-    protected function resolveConfig(string $name)
+    /**
+     * 获取磁盘配置
+     * @param string $name 磁盘名称
+     * @return array
+     */
+    protected function resolveConfig(string $name): array
     {
         return $this->getDiskConfig($name);
     }
 
     /**
-     * 获取缓存配置
+     * 获取文件系统配置
      * @access public
      * @param null|string $name    名称
      * @param mixed       $default 默认值
@@ -64,12 +75,12 @@ class Filesystem extends Manager
 
     /**
      * 获取磁盘配置
-     * @param string $disk
-     * @param null   $name
-     * @param null   $default
-     * @return array
+     * @param string      $disk
+     * @param string|null $name
+     * @param mixed       $default
+     * @return mixed
      */
-    public function getDiskConfig($disk, $name = null, $default = null)
+    public function getDiskConfig(string $disk, ?string $name = null, $default = null)
     {
         if ($config = $this->getConfig("disks.{$disk}")) {
             return Arr::get($config, $name, $default);
@@ -82,7 +93,7 @@ class Filesystem extends Manager
      * 默认驱动
      * @return string|null
      */
-    public function getDefaultDriver()
+    public function getDefaultDriver(): ?string
     {
         return $this->getConfig('default');
     }
